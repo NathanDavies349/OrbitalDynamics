@@ -9,77 +9,67 @@ from re import A
 #from astropy.constants import G as gravitationalConstant
 import matplotlib.pyplot as plt
 import numpy as np
-import Vector
+from Vector import Vector
 gravitationalConstant = 6.67e-11
 
-class ExoObject:
-    def __init__(self, xPos:float, yPos:float, ux:float, uy:float, mass:int, name:str) -> None:
-        self.currentPosX:float = xPos
-        self.currentPosY:float = yPos
-        self.currentVelX:float = ux
-        self.currentVelY:float = uy
-        #self.currentAccX:float = ax
-        #self.currentAccY:float = ay
-
+class Body:
+    def __init__(self, initialPosition:Vector, initialVelocity:Vector, mass:int, name:str) -> None:
+        self.currentPos:Vector = initialPosition
+        self.currentVel:Vector = initialVelocity
         self.mass:int = mass
         self.name:str = name
 
-        self.xHistory:list = [xPos]
-        self.yHistory:list = [yPos]
+        self.orbitalHistory:list[Vector] = [initialPosition]
 
-    def CalcualteTheta(self, other):
-        deltaX = other.currentPosX - self.currentPosX
-        deltaY = other.currentPosY - self.currentPosY
+    def CalcualteTheta(self, other:Body):
+        deltaX = other.currentPos.x - self.currentPos.x
+        deltaY = other.currentPos.y - self.currentPos.y
 
         theta = math.atan2(deltaY, deltaX)
         return theta
     
-    def CalculateSeperationSquared(self, other):
-        deltaX = other.currentPosX - self.currentPosX
-        deltaY = other.currentPosY - self.currentPosY
-
+    def CalculateSeperationSquared(self, other:Body):
+        deltaX = other.currentPos.x - self.currentPos.x
+        deltaY = other.currentPos.y - self.currentPos.y
         return (deltaX ** 2) + (deltaY ** 2)
 
-    def CalculateAcceleration(self, other):
+    def CalculateAcceleration(self, other:Body):
         theta = self.CalcualteTheta(other)
         seperationSquared = self.CalculateSeperationSquared(other)
         return (gravitationalConstant * other.mass * math.cos(theta) / seperationSquared,
                 gravitationalConstant * other.mass * math.sin(theta) / seperationSquared)
 
-    def CalculateTotalAcceleration(self, bodies:list):
+    def CalculateTotalAcceleration(self, bodies:list[Body]):
         totalAccelerationX = 0
         totalAccelerationY = 0
-        count=0
         for body in bodies:
             if body != self:
                 ax, ay = self.CalculateAcceleration(body)
                 totalAccelerationX += ax
                 totalAccelerationY += ay
-                count+=1
-        return {'x':totalAccelerationX, 'y':totalAccelerationY}
+  
+        return Vector(totalAccelerationX, totalAccelerationY)
 
-    def CalculateNewVelocity(self, totalAcceleration:dict, timeStep:float):
-        self.currentVelX += (timeStep * totalAcceleration['x'])
-        self.currentVelY += (timeStep * totalAcceleration['y'])
+    def CalculateNewVelocity(self, totalAcceleration:Vector, timeStep:float):
+        self.currentVel += (totalAcceleration * timeStep)
+
     
     def CalculateNewPosition(self, timeStep:float):
-        self.currentPosX += self.currentVelX * timeStep
-        self.currentPosY += self.currentVelY * timeStep
+        self.currentPos += (self.currentVel * timeStep)
 
-    def UpdateValues(self, bodies:list, timeStep:float):
-        accelerationDict = self.CalculateTotalAcceleration(bodies)
-        self.CalculateNewVelocity(accelerationDict, timeStep)
+    def UpdateValues(self, bodies:list[Body], timeStep:float):
+        acceleration = self.CalculateTotalAcceleration(bodies)
+        self.CalculateNewVelocity(acceleration, timeStep)
         self.CalculateNewPosition(timeStep)
-        self.xHistory.append(self.currentPosX)
-        self.yHistory.append(self.currentPosY)
+        self.orbitalHistory.append(self.currentPos)
 
 
 def main():
     sunInitialVelocity = math.sqrt(gravitationalConstant * 5.972e24 / 1.5e11)
     earthInitialVelocity = math.sqrt(gravitationalConstant * 1.989e30 / 1.5e11)
     
-    Sun = ExoObject(0,0,0,-sunInitialVelocity,1.989e30,"Sun")
-    Earth = ExoObject(1.5e11,0,0,earthInitialVelocity,5.972e24,"Earth")
+    Sun = Body(Vector(0,0),Vector(0,-sunInitialVelocity),1.989e30,"Sun")
+    Earth = Body(Vector(1.5e11,0),Vector(0,earthInitialVelocity),5.972e24,"Earth")
 
     solarSystem = [Sun, Earth]
 
@@ -95,15 +85,12 @@ def main():
         currentTime += dt
   
     
-    plt.plot(Earth.xHistory, Earth.yHistory, color='g')
-    plt.plot(Sun.xHistory, Sun.yHistory, color='y')
+    plt.plot([pos.x for pos in Earth.orbitalHistory], [pos.y for pos in Earth.orbitalHistory], color='g')
+    plt.plot([pos.x for pos in Sun.orbitalHistory], [pos.y for pos in Sun.orbitalHistory], color='y')
     plt.show()
 
     #print(Earth.xHistory)
 
-def main2():
-    a = Vector.Vector(1,2)
-
     
 if __name__ == "__main__":
-    main2()
+    main()
