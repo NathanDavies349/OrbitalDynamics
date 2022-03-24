@@ -13,7 +13,13 @@ class Vector(object):
     def __add__(self, other:Vector) -> Vector:
         return Vector(self.x+other.x, self.y+other.y)
 
+    def __iadd__(self, other:Vector) -> Vector:
+        return Vector(self.x+other.x, self.y+other.y)
+
     def __sub__(self, other:Vector) -> Vector:
+        return Vector(self.x-other.x, self.y-other.y)
+    
+    def __isub__(self, other:Vector) -> Vector:
         return Vector(self.x-other.x, self.y-other.y)
 
     def __mul__(self, scalar:int|float) -> Vector:
