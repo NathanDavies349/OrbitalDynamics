@@ -1,6 +1,7 @@
 #Class for vectors to simplify the access of coordinate based values
 
 from __future__ import annotations      
+import math
 
 class Vector(object):
     def __init__(self, x:int|float, y:int|float) -> None:
@@ -28,3 +29,6 @@ class Vector(object):
     def __truediv__(self, scalar:int|float) -> Vector:
         return Vector(self.x/scalar, self.y/scalar)
 
+    @property
+    def Magnitude(self) -> float:
+        return math.sqrt(self.x**2 + self.y**2)
