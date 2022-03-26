@@ -5,10 +5,8 @@
 from __future__ import annotations  
 
 import math
-from re import A
 #from astropy.constants import G as gravitationalConstant
 import matplotlib.pyplot as plt
-import numpy as np
 from Vector import Vector
 gravitationalConstant = 6.67e-11
 
@@ -53,7 +51,6 @@ class Body:
     def CalculateNewVelocity(self, totalAcceleration:Vector, timeStep:float):
         self.currentVel += (totalAcceleration * timeStep)
 
-    
     def CalculateNewPosition(self, timeStep:float):
         self.currentPos += (self.currentVel * timeStep)
 
@@ -63,15 +60,57 @@ class Body:
         self.CalculateNewPosition(timeStep)
         self.orbitalHistory.append(self.currentPos)
 
+    @property
+    def xPositionalHistory(self) -> list:
+        return [pos.x for pos in self.orbitalHistory]
+    
+    @property
+    def yPositionalHistory(self) -> list:
+        return [pos.y for pos in self.orbitalHistory]
+
+
+class System:
+    def __init__(self, bodies:tuple[Body]) -> None:
+        self.bodies:tuple[Body] = bodies
+
+    def __iter__(self):
+        return (body for body in self.bodies)
+    
+    @property
+    def TotalGpeOfSystem(self):
+        # GPE = -GM_1M_2/r
+        totalGPE = 0
+        for index, body in enumerate(self.bodies):
+            for other in self.bodies[index:]: #does not double count bodies in GPE calculation
+                if body == other:
+                    pass
+                else:
+                    #print(body.name, other.name)
+                    totalGPE += -gravitationalConstant * body.mass * other.mass / math.sqrt(body.CalculateSeperationSquared(other))
+        return totalGPE
+
+    @property
+    def TotalKeOfSystem(self):
+        # KE = mv^2 / 2
+        totalKE = 0
+        for body in self.bodies:
+            totalKE += 0.5 * body.mass * (body.currentVel.Magnitude**2)
+        return totalKE
+
+    @property
+    def TotalEnergyOfSystem(self):
+        return self.TotalGpeOfSystem + self.TotalKeOfSystem
+
 
 def main():
+    astronomicalUnit = 1.5e11
     sunInitialVelocity = math.sqrt(gravitationalConstant * 5.972e24 / 1.5e11)
     earthInitialVelocity = math.sqrt(gravitationalConstant * 1.989e30 / 1.5e11)
     
     Sun = Body(Vector(0,0),Vector(0,-sunInitialVelocity),1.989e30,"Sun")
     Earth = Body(Vector(1.5e11,0),Vector(0,earthInitialVelocity),5.972e24,"Earth")
-
-    solarSystem = [Sun, Earth]
+    
+    solarSystem = System((Sun, Earth))
 
     daysToSeconds = 24*60*60
     runTime = 365 * daysToSeconds
@@ -79,17 +118,29 @@ def main():
 
     currentTime = 0
 
+    kineticEnergy = []
+    gravitationalPotential = []
+    totalEnergy = []
+    time = []
+
     while currentTime <= runTime:
         for body in solarSystem:
             body.UpdateValues(solarSystem, dt)
+        kineticEnergy.append(solarSystem.TotalKeOfSystem)
+        gravitationalPotential.append(solarSystem.TotalGpeOfSystem)
+        totalEnergy.append(solarSystem.TotalEnergyOfSystem)
         currentTime += dt
+        time.append(currentTime)
   
     
-    plt.plot([pos.x for pos in Earth.orbitalHistory], [pos.y for pos in Earth.orbitalHistory], color='g')
-    plt.plot([pos.x for pos in Sun.orbitalHistory], [pos.y for pos in Sun.orbitalHistory], color='y')
+    plt.plot(Earth.xPositionalHistory, Earth.yPositionalHistory, color='g')
+    plt.plot(Sun.xPositionalHistory, Sun.yPositionalHistory, color='y')
     plt.show()
 
-    #print(Earth.xHistory)
+    plt.plot(time, kineticEnergy, color='g')
+    plt.plot(time, gravitationalPotential, color='r')
+    plt.plot(time, totalEnergy, color='k')
+    plt.show()
 
     
 if __name__ == "__main__":
