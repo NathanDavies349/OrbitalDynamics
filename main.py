@@ -14,6 +14,7 @@ class Body:
     def __init__(self, initialPosition:Vector, initialVelocity:Vector, mass:int, name:str) -> None:
         self.currentPos:Vector = initialPosition
         self.currentVel:Vector = initialVelocity
+        self.currentAcc:Vector = Vector(0,0)
         self.mass:int = mass
         self.name:str = name
 
@@ -46,18 +47,17 @@ class Body:
                 totalAccelerationX += ax
                 totalAccelerationY += ay
   
-        return Vector(totalAccelerationX, totalAccelerationY)
+        self.currentAcc = Vector(totalAccelerationX, totalAccelerationY)
 
-    def CalculateNewVelocity(self, totalAcceleration:Vector, timeStep:float):
-        self.currentVel += (totalAcceleration * timeStep)
+    def UpdateVelocity(self, timeStep:float):
+        self.currentVel += (self.currentAcc * timeStep)
 
-    def CalculateNewPosition(self, timeStep:float):
+    def UpdatePosition(self, timeStep:float):
         self.currentPos += (self.currentVel * timeStep)
 
-    def UpdateValues(self, bodies:list[Body], timeStep:float):
-        acceleration = self.CalculateTotalAcceleration(bodies)
-        self.CalculateNewVelocity(acceleration, timeStep)
-        self.CalculateNewPosition(timeStep)
+    def UpdateValues(self, timeStep:float):
+        self.UpdateVelocity(timeStep)
+        self.UpdatePosition(timeStep)
         self.orbitalHistory.append(self.currentPos)
 
     @property
@@ -101,6 +101,41 @@ class System:
     def TotalEnergyOfSystem(self):
         return self.TotalGpeOfSystem + self.TotalKeOfSystem
 
+def KickDriftKick(bodies:System, timeStep:float) -> None:
+    for body in bodies: #first calculate the acceleration on each body from all other bodies before position is updated
+        body.CalculateTotalAcceleration(bodies)
+
+    #velocity_half:float
+    for body in bodies: #velocity at half time step then update the positions of each body
+        body.currentVel += (body.currentAcc * timeStep/2)
+        body.currentPos += (body.currentVel * timeStep/2)
+        body.orbitalHistory.append(body.currentPos)
+
+    for body in bodies: #calculate the acceleration on each body from all other bodies at the updated position
+        body.CalculateTotalAcceleration(bodies)
+
+    for body in bodies: #Now update the velocity for the new position
+        body.currentVel += (body.currentAcc * timeStep/2)
+    
+def Simplistic(bodies:System, timeStep:float) -> None:
+    for body in bodies: #first calculate the acceleration on each body from all other bodies before position is updated
+        body.CalculateTotalAcceleration(bodies)
+    for body in bodies:
+        body.UpdateValues(timeStep)
+
+def ChangeInEnergyPlot(energy:list[float], time:list[float]) -> None:
+
+    deltaOverEnergy = []
+    for i in range(len(energy)-1):
+        deltaOverEnergy.append((energy[i+1]-energy[i])/energy[i+1])
+
+    plt.scatter(time[1:], deltaOverEnergy)
+    plt.show()
+
+def OrbitsPlot(bodies:System) -> None:
+    for body in bodies:
+        plt.plot(body.xPositionalHistory, body.yPositionalHistory)
+    plt.show()
 
 def main():
     astronomicalUnit = 1.5e11
@@ -113,34 +148,25 @@ def main():
     solarSystem = System((Sun, Earth))
 
     daysToSeconds = 24*60*60
-    runTime = 365 * daysToSeconds
-    dt = 0.01 * daysToSeconds
+    runTime = 3650 * daysToSeconds
+    dt = 0.1 * daysToSeconds
 
     currentTime = 0
-
-    kineticEnergy = []
-    gravitationalPotential = []
     totalEnergy = []
-    time = []
+    time = [currentTime]
 
     while currentTime <= runTime:
-        for body in solarSystem:
-            body.UpdateValues(solarSystem, dt)
-        kineticEnergy.append(solarSystem.TotalKeOfSystem)
-        gravitationalPotential.append(solarSystem.TotalGpeOfSystem)
+        KickDriftKick(solarSystem, dt)
+        #Simplistic(solarSystem, dt)
+        
+
         totalEnergy.append(solarSystem.TotalEnergyOfSystem)
         currentTime += dt
         time.append(currentTime)
-  
-    
-    plt.plot(Earth.xPositionalHistory, Earth.yPositionalHistory, color='g')
-    plt.plot(Sun.xPositionalHistory, Sun.yPositionalHistory, color='y')
-    plt.show()
 
-    plt.plot(time, kineticEnergy, color='g')
-    plt.plot(time, gravitationalPotential, color='r')
-    plt.plot(time, totalEnergy, color='k')
-    plt.show()
+    ChangeInEnergyPlot(energy=totalEnergy, time=time[1:])
+    OrbitsPlot(solarSystem)
+
 
     
 if __name__ == "__main__":
