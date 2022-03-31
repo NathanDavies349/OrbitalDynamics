@@ -1,6 +1,7 @@
 # https://research.wdss.io/planetary-motion/#The-Setup
 # https://medium.com/swlh/create-your-own-n-body-simulation-with-python-f417234885e9
 # https://courses.physics.ucsd.edu/2018/Winter/physics141/Lectures/Lecture2/volker.pdf
+# https://nctstca.github.io/events/202107-tcassp/lectures/NCTS_TCA_SSP_20210706_Numerical_Simulations_hyschive.pdf
 
 from __future__ import annotations  
 
@@ -103,19 +104,19 @@ class System:
 
 def KickDriftKick(bodies:System, timeStep:float) -> None:
     for body in bodies: #first calculate the acceleration on each body from all other bodies before position is updated
-        body.CalculateTotalAcceleration(bodies)
+        body.CalculateTotalAcceleration(bodies) #a(t)
 
     #velocity_half:float
     for body in bodies: #velocity at half time step then update the positions of each body
-        body.currentVel += (body.currentAcc * timeStep/2)
-        body.currentPos += (body.currentVel * timeStep/2)
+        body.currentVel += (body.currentAcc * timeStep/2) #v(t + delta_t/2)
+        body.currentPos += (body.currentVel * timeStep) #x(t + delta_t)
         body.orbitalHistory.append(body.currentPos)
 
     for body in bodies: #calculate the acceleration on each body from all other bodies at the updated position
-        body.CalculateTotalAcceleration(bodies)
+        body.CalculateTotalAcceleration(bodies) #a(t + delta_t)
 
     for body in bodies: #Now update the velocity for the new position
-        body.currentVel += (body.currentAcc * timeStep/2)
+        body.currentVel += (body.currentAcc * timeStep/2) #v(t + delta_t)
     
 def Simplistic(bodies:System, timeStep:float) -> None:
     for body in bodies: #first calculate the acceleration on each body from all other bodies before position is updated
