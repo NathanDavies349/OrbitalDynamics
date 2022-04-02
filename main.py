@@ -3,13 +3,40 @@
 # https://courses.physics.ucsd.edu/2018/Winter/physics141/Lectures/Lecture2/volker.pdf
 # https://nctstca.github.io/events/202107-tcassp/lectures/NCTS_TCA_SSP_20210706_Numerical_Simulations_hyschive.pdf
 
-from __future__ import annotations  
+# https://nssdc.gsfc.nasa.gov/planetary/factsheet/
+
+#to Do
+#Add scale to plots
+#Change plots to animation
+#logarithmically scale plots to fit all planets on
+
+from __future__ import annotations
+from cProfile import label  
 
 import math
+from telnetlib import TM
 #from astropy.constants import G as gravitationalConstant
 import matplotlib.pyplot as plt
 from Vector import Vector
 gravitationalConstant = 6.67e-11
+planets = {
+            "Mercury": {"Mass":0.33e24,
+                        "OrbitalVelocity":47.4e3,
+                        "DistanceFromSun":57.9e9},
+            "Venus": {"Mass":4.87e24,
+                      "OrbitalVelocity":35e3,
+                      "DistanceFromSun":108.2e9},
+            "Earth": {"Mass":5.97e24,
+                      "OrbitalVelocity":28.8e3,
+                      "DistanceFromSun":149.5e9},
+            "Mars": {"Mass":0.642e24,
+                     "OrbitalVelocity":24.1e3,
+                     "DistanceFromSun":228e9},
+            "Jupiter": {"Mass":1898e24,
+                        "OrbitalVelocity":13.1e3,
+                        "DistanceFromSun":778.5e9,
+                        "OrbitalPeriod":4331*24*60*60}
+}
 
 class Body:
     def __init__(self, initialPosition:Vector, initialVelocity:Vector, mass:int, name:str) -> None:
@@ -102,6 +129,29 @@ class System:
     def TotalEnergyOfSystem(self):
         return self.TotalGpeOfSystem + self.TotalKeOfSystem
 
+def CalculateSolarParameters(planets:dict) -> Body:
+    #Sun's motion and barycenter are goverened mostly by Jupiter
+    solarMass = 1.989e30
+    distanceFromBarycenter = planets["Jupiter"]["DistanceFromSun"]/(1+solarMass/planets["Jupiter"]["Mass"])
+    #In the calculation above neglect size of Sun and Jupiter since seperation is much greater
+    #Period of the Sun's orbit is equal to that of Jupiter (using the assumption at the start)
+    solarVelocity = 2*math.pi*distanceFromBarycenter/planets["Jupiter"]["OrbitalPeriod"]
+
+    return Body(initialPosition=Vector(-distanceFromBarycenter,0),
+                initialVelocity=Vector(0,-solarVelocity),
+                mass=solarMass,
+                name="Sun")
+    
+def MakeSolarSystem(planets:dict) -> System:
+    tempStorage = []
+    tempStorage.append(CalculateSolarParameters(planets))
+    for planetName, planetAttributes in planets.items():
+        tempStorage.append(Body(initialPosition=Vector(planetAttributes["DistanceFromSun"],0),
+                                initialVelocity=Vector(0,planetAttributes["OrbitalVelocity"]),
+                                mass=planetAttributes["Mass"],
+                                name=planetName))
+    return System(tuple(tempStorage))
+
 def KickDriftKick(bodies:System, timeStep:float) -> None:
     for body in bodies: #first calculate the acceleration on each body from all other bodies before position is updated
         body.CalculateTotalAcceleration(bodies) #a(t)
@@ -135,7 +185,8 @@ def ChangeInEnergyPlot(energy:list[float], time:list[float]) -> None:
 
 def OrbitsPlot(bodies:System) -> None:
     for body in bodies:
-        plt.plot(body.xPositionalHistory, body.yPositionalHistory)
+        plt.plot(body.xPositionalHistory, body.yPositionalHistory, label=body.name)
+    plt.legend()
     plt.show()
 
 def main():
@@ -168,7 +219,23 @@ def main():
     ChangeInEnergyPlot(energy=totalEnergy, time=time[1:])
     OrbitsPlot(solarSystem)
 
+def mainTest():
+    solarSystem = MakeSolarSystem(planets)
+    daysToSeconds = 24*60*60
+    runTime = 36500 * daysToSeconds
+    dt = 0.1 * daysToSeconds
 
+    currentTime = 0
+    totalEnergy = []
+    time = [currentTime]
+
+    while currentTime <= runTime:
+        KickDriftKick(solarSystem, dt)
+        totalEnergy.append(solarSystem.TotalEnergyOfSystem)
+        currentTime += dt
+        time.append(currentTime)
+
+    OrbitsPlot(solarSystem)
     
 if __name__ == "__main__":
-    main()
+    mainTest()
